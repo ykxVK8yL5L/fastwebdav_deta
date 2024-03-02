@@ -7,7 +7,11 @@ on:
       tag:
         description: 'Tag to release'
         required: true
-        default: 'v0.0.3'
+        default: '0.0.1'
+      note:
+          description: '发布说明'
+          required: true
+          default: '更新'
 
 jobs:
   push:
@@ -19,6 +23,6 @@ jobs:
         with:
           access_token: ${{ secrets.SPACE_ACCESS_TOKEN }}
           id: ${{ secrets.SPACE_PROJECT_ID }}
-          version: "1.0.0"
-          notes: "更新"
+          version: ${{ github.event.inputs.tag}}
+          notes: ${{ github.event.inputs.note}}
           listed: true

@@ -302,19 +302,25 @@
             methods.saveProvider=saveProvider;
 
             const removeProvider = (name)=>{
-              layer.load();
-              axios({
-                  headers: {'Content-Type': 'application/json'},
-                  method:'post',
-                  url:'/provider/del',
-                  data:{"name":name}
-              })
-              .then(function (response) {
-                window.location.reload();
-              })
-              .catch(function (error) { // 请求失败处理
-                  layer.closeAll('loading');
-                  console.log(error);
+             layer.confirm('您确定要删除目前？不可恢复', {
+                btn: ['删除', '取消'] //按钮
+              }, function () {
+                layer.load();
+                axios({
+                    headers: {'Content-Type': 'application/json'},
+                    method:'post',
+                    url:'/provider/del',
+                    data:{"name":name}
+                })
+                .then(function (response) {
+                  window.location.reload();
+                })
+                .catch(function (error) { // 请求失败处理
+                    layer.closeAll('loading');
+                    console.log(error);
+                });
+              }, function () {
+                
               });
             };
             methods.removeProvider=removeProvider;
