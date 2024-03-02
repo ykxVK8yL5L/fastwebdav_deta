@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, minimal-ui, shrink-to-fit=no">
+<title>FastWebdav</title>
+<script src="/static/js/jquery.min.js"></script>
+<script src="/static/js/axios.min.js"></script>
+<script src="/static/layer/layer.js"></script>
+<script src="/static/js/fancybox.js"></script>
+<script src="/static/js/vue.min.js"></script>
+<script src="/static/js/vuetify.min.js"></script>
+<script src="/static/js/vue3-clipboard.min.js"></script>
+<link href="/static/css/vuetify.min.css" rel="stylesheet">
+<!-- <link href="/static/css/materialdesignicons.min.css" rel="stylesheet"> -->
+<link href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css" rel="stylesheet">
+<link href="/static/css/fancybox.css" rel="stylesheet">
+<style>
+  #app .v-btn {
+    min-width: 0;
+  }
+  .v-application .v-toolbar__title a{color:#fff;margin-right:5px;}
+  a{text-decoration:none}
+</style>
+</head>
+<body>
+    <div id="app">
+      <v-card
+        class="mx-auto"
+        max-width="800"
+      >
+      <v-toolbar color="secondary">
+        <v-btn variant="text" icon="mdi-menu"></v-btn>
+        <v-toolbar-title>/</v-toolbar-title>
+        <v-spacer></v-spacer>
+        <!-- <v-btn variant="text" @click="getFiles" icon="mdi-reload"></v-btn> -->
+        <v-btn variant="text" @click="showModes=true" icon="mdi-plus"></v-btn>
+        <v-btn variant="text" icon="mdi-dots-vertical" @click="setting.showSetting = true"></v-btn>
+      </v-toolbar>
+
+      <!--设置窗口开始-->
+      <v-dialog
+      v-model="setting.showSetting"
+      fullscreen
+      :scrim="false"
+      transition="dialog-bottom-transition"
+    >
+      <v-card>
+        <v-toolbar
+          dark
+          color="primary"
+        >
+          <v-btn
+            icon
+            dark
+            @click="setting.showSetting = false"
+          >
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+          <v-toolbar-title>设置</v-toolbar-title>
+          <v-spacer></v-spacer>
+          <v-toolbar-items>
+            <v-btn
+              variant="text"
+              @click="setting.showSetting = false;saveSetting()"
+            >
+              保存
+            </v-btn>
+          </v-toolbar-items>
+        </v-toolbar>
+
+        <v-divider></v-divider>
+        <v-list>
+          <v-list-subheader>Aria2设置</v-list-subheader>
+          <v-list-item>
+              <v-text-field v-model="setting.aria2Url" label="Aria2地址"></v-text-field>
+          </v-list-item>
+          <v-list-item>
+            <v-list-item-title>
+              <v-text-field  v-model="setting.aria2Token" label="Aria2 Token"></v-text-field>
+            </v-list-item-title>
+          </v-list-item>
+          <v-list-item>
+              <v-text-field v-model="setting.aria2Dir" label="文件保存目录"></v-text-field>
+          </v-list-item>
+        </v-list>
+        <v-divider></v-divider>
+
+        <v-list>
+          <v-list-subheader>密码设置</v-list-subheader>
+          <v-list-item>
+            <v-text-field 
+            :append-icon="setting.showpassword ? 'mdi-eye' : 'mdi-eye-off'"
+            :type="setting.showpassword ? 'text' : 'password'"
+            name="input-10-1"
+            @click:append="setting.showpassword = !setting.showpassword"
+            v-model="setting.password" 
+            label="密码设置"></v-text-field>
+          </v-list-item>
+        </v-list>
+
+      </v-card>
+      </v-dialog>
+      <!--设置窗口结束-->
+
+
+
+      <!--目录窗口开始-->
+      <v-dialog
+      v-model="showModes"
+      max-width="600"
+    >
+    <v-card
+    prepend-icon="mdi-folder-plus"
+    title="添加目录"
+  >
+    <v-card-text>
+      <v-row dense>
+        <v-col
+        cols="12"
+      >
+
+      <v-text-field
+          v-model="savedProvider['provider']"
+          label="目录名称,唯一*"
+          required
+        ></v-text-field>
+      </v-col>
+
+        <v-col
+        cols="12"
+        >
+        <v-select :item-props="itemProps" :items="models" label="类型" v-model="selectedModel"></v-select>
+        </v-col>
+
+        <v-col
+          v-for="param in selectedModel.params"
+          cols="12"
+          md="4"
+          sm="6"
+        >
+          <v-text-field
+            v-model="savedProvider[param.name]"
+            :label="param.comment+'*'"
+            required
+          ></v-text-field>
+        </v-col>
+      </v-row>
+
+      <small class="text-caption text-medium-emphasis">*表示必填,实例名称用英文字母</small>
+    </v-card-text>
+    <v-divider></v-divider>
+    <v-card-actions>
+      <v-spacer></v-spacer>
+      <v-btn
+        text="取消"
+        variant="plain"
+        @click="showModes = false"
+      ></v-btn>
+
+      <v-btn
+        color="primary"
+        text="保存"
+        variant="tonal"
+        @click="saveProvider"
+      ></v-btn>
+    </v-card-actions>
+  </v-card>
+    </v-dialog>
+      <!--目录窗口结束-->
+
+
+
+
+
+      <v-container>
+        <v-list lines="two">
+          <v-list-item
+            v-for="file in files"
+            :key="file.id"
+          >
+          <a :href="'/'+file.name+'/list/'+encodeJson(file)"><v-list-item-title v-text="file.name" class="text-wrap"></v-list-item-title></a>
+          <v-list-item-subtitle v-text="file.create_time" style="white-space: wrap;"></v-list-item-subtitle>
+            <template v-slot:prepend>
+              <v-avatar :color="file.icon.color">
+                <v-icon color="white">mdi-${file.icon.name}</v-icon>
+              </v-avatar>
+            </template>
+
+            <template v-slot:append>
+              <v-btn
+                v-if = "file.kind==0"
+                :href="'/'+file.name+'/list/'+encodeJson(file)" target="_blank"
+                color="grey-lighten-1"
+                icon="mdi-open-in-new"
+                variant="text"
+              ></v-btn>
+
+              <v-btn
+                v-if = "file.kind==0"
+                @click="removeProvider(file.provider)"
+                color="grey-lighten-1"
+                icon="mdi-folder-remove"
+                variant="text"
+              ></v-btn>
+
+              <v-btn
+              v-if = "file.kind==1"
+              icon="mdi-play-circle"
+              variant="text"
+            ></v-btn>
+
+            </template>
+          </v-list-item>
+      </v-container>
+      </v-card>
+    </div>
+
+    
+
+
+    <script>
+      const { createApp, ref,watch,onMounted } = Vue
+      const { createVuetify } = Vuetify
+      const { copyText } = Vue3Clipboard
+      const vuetify = createVuetify()
+
+      const app = createApp({
+          setup() {
+            const data = {};
+            const methods = {};
+            //设置相关开始
+            const setting = ref({
+              'showSetting':false,
+              'aria2Url':'http://localhost',
+              'aria2Token':'123456',
+              'aria2Dir':'Downloads',
+              'password':'',
+              'showpassword':false,
+            });
+            data.setting = setting;
+            const saveSetting = ()=>{
+              localStorage.setItem("aria2Url",setting.value.aria2Url);
+              localStorage.setItem("aria2Token",setting.value.aria2Token);
+              localStorage.setItem("aria2Dir",setting.value.aria2Dir);
+              localStorage.setItem("password",setting.value.password);
+            };
+            methods.saveSetting = saveSetting;
+            onMounted(() => {
+              if (localStorage.getItem('aria2Url')) {
+                setting.value.aria2Url = localStorage.getItem('aria2Url');
+              }
+              if (localStorage.getItem('aria2Token')) {
+                setting.value.aria2Token = localStorage.getItem('aria2Token');
+              }
+              if (localStorage.getItem('aria2Dir')) {
+                setting.value.aria2Dir = localStorage.getItem('aria2Dir');
+              }
+              if (localStorage.getItem('thirdToken')) {
+                setting.value.thirdToken = localStorage.getItem('thirdToken');
+              }
+            })
+            //设置相关结束
+
+            
+
+            //目录添加操作 模型数据获取和文件在同一个方法getFiles里
+            const showModes = ref(false);
+            data.showModes = showModes;
+            const models = ref([]);
+            data.models = models;
+            const selectedModel = ref({});
+            data.selectedModel = selectedModel;
+            const savedProvider = ref({});
+            data.savedProvider = savedProvider;
+            //构建模型显示方法
+            const itemProps = (item) =>{
+              return {
+                title: item.name,
+                subtitle: item.comment,
+              }
+            }
+            methods.itemProps=itemProps;
+            const saveProvider = ()=>{
+              var savedProviderReq = savedProvider.value;
+              savedProviderReq.providertype = selectedModel.value.name;
+              layer.load();
+              axios({
+                  headers: {'Content-Type': 'application/json'},
+                  method:'post',
+                  url:'/provider/save',
+                  data:savedProviderReq
+              })
+              .then(function (response) {
+                window.location.reload();
+              })
+              .catch(function (error) { // 请求失败处理
+                  layer.closeAll('loading');
+                  console.log(error);
+              });
+            };
+            methods.saveProvider=saveProvider;
+
+            const removeProvider = (name)=>{
+              layer.load();
+              axios({
+                  headers: {'Content-Type': 'application/json'},
+                  method:'post',
+                  url:'/provider/del',
+                  data:{"name":name}
+              })
+              .then(function (response) {
+                window.location.reload();
+              })
+              .catch(function (error) { // 请求失败处理
+                  layer.closeAll('loading');
+                  console.log(error);
+              });
+            };
+            methods.removeProvider=removeProvider;
+
+
+
+            
+
+            //目录操作完成
+
+
+
+            //文件列表开始
+            const files = ref([]);
+            data.files = files;
+
+            //////请求一个空数据让axios的content-type为json否则响应的就是html
+            let empty_data = {
+                hello: ""
+            };
+            const getFiles = ()=>{
+              layer.load();
+              axios.all([
+                  axios.get('/models'),
+                  axios({
+                      headers: {'Content-Type': 'application/json'},
+                      method:'get',
+                      url:'/',
+                      data:empty_data
+                  })
+                ])
+                .then(axios.spread((modelsres, filesres) => {
+                  layer.closeAll('loading');
+                  //处理模型请求的结果
+                  $.map(modelsres.data, function (o) { 
+                      return models.value.push(o); 
+                  });
+                  //处理文件请求的结果
+                  $.map(filesres.data, function (o) { 
+                    o.icon=getFileType(o.name); 
+                    o.parent_path = "/";
+                    return files.value.push(o); 
+                  });
+                }))
+                .catch(error => {
+                  layer.closeAll('loading');
+                  console.error('Error:', error);
+                });
+
+            };
+            methods.getFiles = getFiles;
+            onMounted(() => {
+              getFiles()
+            })
+
+            //文件列表结束
+
+
+            //工具函数开始
+            const encodeJson = (json) => {
+                const json_str = JSON.stringify(json);
+                const  encode_str = btoa(unescape(encodeURIComponent(json_str)));
+                return encode_str
+            };
+            methods.encodeJson = encodeJson;
+
+            const decodeJsonStr = (json_str) => {
+              const decode_str = decodeURIComponent(escape(atob(json_str)));
+              const obj = JSON.parse(decode_str);
+              return obj;
+            };
+            methods.decodeJsonStr = decodeJsonStr;
+
+            const copy = (text) => {
+                copyText(text, undefined, (error, event) => {
+                  if (error) {
+                    layer.msg('复制失败', {icon: 5});
+                    console.log(error);
+                  } else {
+                    layer.msg('复制成功', {icon: 6});
+                  }
+                })
+            };
+            methods.copy = copy;
+            const bytesToSize = (bytes) => {
+              if (bytes === 0) return '0 B';
+              var k = 1024;
+              sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+              i = Math.floor(Math.log(bytes) / Math.log(k));
+              return (bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
+            };
+            methods.bytesToSize = bytesToSize;
+            const formatDate = (date) => {
+              var d = new Date(date);
+              var year = d.getFullYear();
+              var month = d.getMonth() + 1;
+              var day = d.getDate() < 10 ? '0' + d.getDate() : '' + d.getDate();
+              var hour = d.getHours();
+              var minutes = d.getMinutes();
+              var seconds = d.getSeconds();
+              return year + '-' + month + '-' + day + ' ' + hour + ':' + minutes + ':' + seconds;
+            };
+            methods.formatDate = formatDate;
+            const formatStatus = (status) => {
+              var msg = "已过期";
+              if (status == 'PHASE_TYPE_COMPLETE') {
+                msg = "已完成";
+              }
+              return msg;
+            };
+            methods.formatStatus = formatStatus;
+
+
+            const getFileType = (fileName)=> {
+                const map = new Map([
+                    ["jpeg", {key: "jpeg", name: "image", color: "green"}],
+                    ["jpg", {key: "jpg", name: "image", color: "green"}],
+                    ["gif", {key: "gif", name: "image", color: "green"}],
+                    ["bmp", {key: "bmp", name: "image", color: "green"}],
+                    ["png", {key: "png", name: "image", color: "green"}],
+                    ["avif", {key: "avif", name: "image", color: "green"}],
+                    ["heic", {key: "heic", name: "image", color: "green"}],
+                    ["mp4", {key: "mp4", name: "video", color: "purple"}],
+                    ["mkv", {key:"mkv",name:"video",color:"purple"}],
+                    ["m4u", {key:"m4u",name:"video",color:"purple"}],
+                    ["m4v", {key:"m4v",name:"video",color:"purple"}],
+                    ["mov", {key:"mov",name:"video",color:"purple"}],
+                    ["3gp", {key:"3gp",name:"video",color:"purple"}],
+                    ["asf", {key:"asf",name:"video",color:"purple"}],
+                    ["avi", {key:"avi",name:"video",color:"purple"}],
+                    ["wmv", {key:"wmv",name:"video",color:"purple"}],
+                    ["flv", {key:"flv",name:"video",color:"purple"}],
+                    ["mpe", {key:"mpe",name:"video",color:"purple"}],
+                    ["mpg", {key:"mpg",name:"video",color:"purple"}],
+                    ["mpg4", {key:"mpg4",name:"video",color:"purple"}],
+                    ["mpeg4", {key:"mpeg4",name:"video",color:"purple"}],
+                    ["mpga", {key:"mpga",name:"video",color:"purple"}],
+                    ["rmvb", {key:"rmvb",name:"video",color:"purple"}],
+                    ["rm", {key:"rm",name:"video",color:"purple"}],
+                    ["aac", {key:"aac",name:"music",color:"blue"}],
+                    ["ogg", {key:"ogg",name:"music",color:"blue"}],
+                    ["wav", {key:"wav",name:"music",color:"blue"}],
+                    ["m3u", {key:"m3u",name:"music",color:"blue"}],
+                    ["m4a", {key:"m4a",name:"music",color:"blue"}],
+                    ["m4b", {key:"m4b",name:"music",color:"blue"}],
+                    ["m4r", {key:"m4r",name:"music",color:"blue"}],
+                    ["m4p", {key:"m4p",name:"music",color:"blue"}],
+                    ["mp2", {key:"mp2",name:"music",color:"blue"}],
+                    ["wma", {key:"wma",name:"music",color:"blue"}],
+                    ["mp3", {key:"mp3",name:"music",color:"blue"}],
+                    ["doc", {key:"doc",name:"file-document",color:"indigo"}],
+                    ["docx", {key:"doc",name:"file-document",color:"indigo"}],
+                    ["xls", {key:"xls",name:"file-excel",color:"indigo"}],
+                    ["xlsx", {key:"xlsx",name:"file-excel",color:"indigo"}],
+                    ["rs", {key:"rs",name:"language-rust",color:"brown"}],
+                    ["lua", {key:"lua",name:"language-lua",color:"brown"}],
+                    ["go", {key:"go",name:"language-go",color:"brown"}],
+                    ["c", {key:"c",name:"language-c",color:"brown"}],
+                    ["cpp", {key:"cpp",name:"language-cpp",color:"brown"}],
+                    ["py", {key:"py",name:"language-python",color:"brown"}],
+                    ["php", {key:"php",name:"language-php",color:"brown"}],
+                    ["js", {key:"js",name:"language-javascript",color:"brown"}],
+                    ["ts", {key:"ts",name:"language-typescript",color:"brown"}],
+                    ["java", {key:"java",name:"language-java",color:"brown"}],
+                    ["html", {key:"html",name:"language-html5",color:"brown"}],
+                    ["css", {key:"css",name:"language-css3",color:"brown"}],
+                    ["md", {key:"md",name:"language-markdown",color:"brown"}],
+                    ["cpp", {key:"cpp",name:"language-cpp",color:"brown"}],
+                    ["cs", {key:"cs",name:"language-csharp",color:"brown"}],
+                    ["kt", {key:"kt",name:"language-kotlin",color:"brown"}],
+                    ["folder", {key:"folder",name:"folder",color:"teal"}],
+                ]);
+
+                const fileExt = getFileExtensionName(fileName);
+                if(fileExt.length==0){
+                  return {key:"folder",name:"folder",color:"teal"};
+                }
+                const fileType = map.get(fileExt) || {key: "other", name: "file", color: "grey"};
+                return fileType;
+            }
+
+            methods.getFileType = getFileType;
+
+            const getFileExtensionName = (fileName)=> {
+                if(fileName.includes('.')){
+                  return fileName.split('.').pop().toLowerCase();
+                }else{
+                  return '';
+                }
+            }
+            methods.getFileExtensionName = getFileExtensionName;
+
+            return {
+              ...data,
+              ...methods
+            }
+        }
+      })
+      app.config.compilerOptions.delimiters = ['${', '}'];
+      app.use(vuetify).mount('#app')
+      //app._instance.ctx.copy(text);     //app外部调用示例
+
+    </script>
+</body>
+ 
+</html>

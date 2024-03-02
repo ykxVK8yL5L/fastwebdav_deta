@@ -1,0 +1,9 @@
+uvicorn==0.18.2
+datetime
+fastapi
+requests
+cachelib
+python-multipart
+jinja2
+webdav4
+deta
