@@ -1,0 +1,22 @@
+name: Push to Space
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release'
+        required: true
+        default: 'v0.0.3'
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: neobrains/space-deployment-github-action@v0.5
+        with:
+          access_token: ${{ secrets.SPACE_ACCESS_TOKEN }}
+          project_id: ${{ secrets.SPACE_PROJECT_ID }}
+          space_push: true
+          space_release: true
