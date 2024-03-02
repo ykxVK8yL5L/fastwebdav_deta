@@ -2,6 +2,7 @@ import os,sys,glob
 from typing import Annotated
 from datetime import datetime
 from fastapi import FastAPI,APIRouter,Request,Query,Path,Request,File,Form
+from fastapi.routing import APIRoute
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, StreamingResponse,HTMLResponse,FileResponse
@@ -226,8 +227,27 @@ async def remove_provider(provider:PostRequest):
     '''
     provider_dict = provider.dict()  # 将Pydantic模型转换为字典
     DETA_PROVDIERS_DB.delete(provider_dict['name'])
+    pattern = rf"^/{provider_dict['name']}(?:/.*)?$"
+    remove_routes_by_pattern(app, pattern)
     # 检查put操作是否成功
     return {"message":"删除成功"}
 
 
 app.include_router(provider_router)
+
+
+class RegexRoute(APIRoute):
+    def __init__(self, pattern: str):
+        self.pattern = pattern
+
+    def matches(self, path: str, method: str = None) -> bool:
+        return re.match(self.pattern, path) is not None
+
+def remove_routes_by_pattern(app, pattern):
+    routes_to_remove = []
+    for route in app.routes:
+        if isinstance(route, APIRoute) and isinstance(route, RegexRoute):
+            if route.matches(pattern):
+                routes_to_remove.append(route)
+    for route in routes_to_remove:
+        app.routes.remove(route)
