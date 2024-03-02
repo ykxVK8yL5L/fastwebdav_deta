@@ -14,9 +14,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: neobrains/space-deployment-github-action@v0.5
+      - name: Deploy
+        uses: lizheming/deta-action@master
         with:
           access_token: ${{ secrets.SPACE_ACCESS_TOKEN }}
-          project_id: ${{ secrets.SPACE_PROJECT_ID }}
-          space_push: true
-          space_release: true
+          id: ${{ secrets.SPACE_PROJECT_ID }}
+          version: "1.0.0"
+          notes: "更新"
+          listed: true
