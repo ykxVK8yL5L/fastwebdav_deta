@@ -24,5 +24,5 @@ jobs:
           access_token: ${{ secrets.SPACE_ACCESS_TOKEN }}
           id: ${{ secrets.SPACE_PROJECT_ID }}
           version: ${{ github.event.inputs.tag}}
-          notes: ${{ github.event.inputs.note}}
+          notes: '${{ github.event.inputs.note}}'
           listed: true
