@@ -358,10 +358,10 @@
             //文件列表排序开始
             const toggleSort = (key) => {
               if (!files.value.descending) {
-                  files.value.sort((a, b) => a[key] > b[key] ? 1 : -1);
+                  files.value.sort((a, b) => a[key].toLowerCase() > b[key].toLowerCase() ? 1 : -1);
                   files.value.descending = true;
               } else {
-                  files.value.sort((a, b) => a[key] > b[key] ? -1 : 1);
+                  files.value.sort((a, b) => a[key].toLowerCase() > b[key].toLowerCase() ? -1 : 1);
                   files.value.descending = false;
               }
             }
