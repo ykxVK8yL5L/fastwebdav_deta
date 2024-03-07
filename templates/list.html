@@ -37,6 +37,19 @@
         <v-toolbar-title>${current_file.name}</v-toolbar-title>
         <v-spacer></v-spacer>
         <v-btn variant="text" href="/" icon="mdi-home"></v-btn>
+        <div class="d-flex justify-space-around">
+          <v-menu>
+            <template v-slot:activator="{ props }">
+              <v-btn variant="text" icon="mdi-sort" v-bind="props"></v-btn>
+            </template>
+            <v-list>
+              <v-list-item><v-list-item-title @click="toggleSort('name')">名称排序</v-list-item-title></v-list-item>
+              <v-list-item><v-list-item-title @click="toggleSort('create_time')">时间排序</v-list-item-title></v-list-item>
+              <v-list-item><v-list-item-title @click="toggleSort('kind')">类型排序</v-list-item-title></v-list-item>
+              <v-list-item><v-list-item-title @click="toggleSort('size')">大小排序</v-list-item-title></v-list-item>
+            </v-list>
+          </v-menu>
+        </div>      
         <v-btn variant="text" @click="showEncrypt?resetName():decryptName()" :icon="showEncrypt?'mdi-lock-outline':'mdi-lock-open-variant'"></v-btn>
         <v-btn variant="text" icon="mdi-dots-vertical" @click="setting.showSetting = true"></v-btn>
       </v-toolbar>
@@ -342,6 +355,18 @@
                 getFiles()
             })
             //文件列表结束
+            //文件列表排序开始
+            const toggleSort = (key) => {
+              if (!files.value.descending) {
+                  files.value.sort((a, b) => a[key] > b[key] ? 1 : -1);
+                  files.value.descending = true;
+              } else {
+                  files.value.sort((a, b) => a[key] > b[key] ? -1 : 1);
+                  files.value.descending = false;
+              }
+            }
+            methods.toggleSort = toggleSort;
+            //文件列表排序结束
 
             //请求文件地址开始
             const play = (file) =>{

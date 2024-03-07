@@ -1,7 +1,6 @@
 import json, requests
 import time
 import datetime
-from datetime import timedelta
 from fastapi import HTTPException
 import re
 import math
@@ -62,8 +61,9 @@ class WebDAV():
             start_index=list_req.path_str.find('/',1)
             path_str=list_req.path_str[start_index:]
         
-        file_list = self.cache.get(f"{self.username}-files-{path_str}")
+        # file_list = self.cache.get(f"{self.provider}-{self.username}-files-{path_str}")
         # 如果缓存中没有结果，则重新请求并缓存结果
+        file_list = False
         if not file_list:
             file_list = []
             files = self.client.ls(path_str,detail=True)
@@ -94,7 +94,9 @@ class WebDAV():
                 playe_headers = json.dumps(self.headers)
                 dav_file = DavFile(id=file['etag'].replace('"',''),provider=self.provider,parent_id=list_req.parent_file_id,kind= kind,name=file['display_name'],size=str(filesize),create_time=formatted_time,download_url=download_url,play_headers=playe_headers) 
                 file_list.append(dav_file)
-            self.cache.set(f"{self.username}-files-{path_str}", file_list, timeout=self.cache_time)
+            print("fuck test")
+            file_list=sorted(file_list, key = lambda x: (-x.kind,x.create_time),reverse=True)
+            # self.cache.set(f"{self.provider}-{self.username}-files-{path_str}", file_list, timeout=self.cache_time)
         return file_list
 
     # 文件下载地址 返回下载地址
@@ -120,7 +122,7 @@ class WebDAV():
         removed_file_path=path_str[path_str.find('/',1):]
         self.client.remove(removed_file_path)
         parent_dir=os.path.dirname(removed_file_path)
-        self.cache.delete(f"{self.username}-files-{parent_dir}")
+        self.cache.delete(f"{self.provider}-{self.username}-files-{parent_dir}")
         return remove_file_req.dav_file
 
 
@@ -155,7 +157,7 @@ class WebDAV():
         self.client.move(from_path,to_path)
         from_dir=os.path.dirname(from_path)
         to_dir=os.path.dirname(to_path)
-        self.cache.delete(f"{self.username}-files-{from_dir}")
-        self.cache.delete(f"{self.username}-files-{to_dir}")
+        self.cache.delete(f"{self.provider}-{self.username}-files-{from_dir}")
+        self.cache.delete(f"{self.provider}-{self.username}-files-{to_dir}")
         return move_file_req.dav_file
     
