@@ -80,29 +80,12 @@ class Cloudreve():
         else:
             start_index=list_req.path_str.find('/',1)
             path_str=list_req.path_str[start_index:]
+            if path_str.endswith("/"):
+                path_str = path_str[:-1]
             
         path_str = urllib.parse.quote_plus(path_str)
-        cookie_cloudreve=self.accessToken
-        base_url= self.url
-        parsed_url = urllib.parse.urlparse(base_url)
-        host = parsed_url.netloc 
-        headers = {
-            'authority': host,
-            'accept': 'application/json, text/plain, */*',
-            'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'content-type': 'application/json;charset=UTF-8',
-            'cookie': 'cloudreve-session='+cookie_cloudreve,
-            'origin': base_url,
-            'referer': base_url+'/home?path=%2F',
-            'sec-ch-ua': '"Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="116"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"macOS"',
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'same-origin',
-            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'
-        }
-
+        headers =self.get_headers()
+        
         # 如果缓存中没有结果，则重新请求并缓存结果
         if not file_list:
             file_list = []
@@ -116,6 +99,7 @@ class Cloudreve():
                 else:
                     parent_file_id=folderId
                 url=f"{self.url}/api/v3/directory"+path_str
+                print(url)
                 try:
                     response = requests.get(url,verify=False,headers=headers, timeout=100)
                     # 如果请求失败，则抛出异常
@@ -123,12 +107,14 @@ class Cloudreve():
                 except requests.exceptions.RequestException as e:
                     print(e)
                     self.refresh_token()
+                    headers =self.get_headers()
                     response = requests.get(url,verify=False,headers=headers, timeout=100)
                 result = json.loads(response.text)
                 if result['code'] == 401:
                     self.refresh_token()
+                    headers =self.get_headers()
                     response = requests.get(url,verify=False,headers=headers, timeout=100)
-                    
+
                 if response.status_code == 200:
                     result = json.loads(response.text)
                     for file in result['data']['objects']:
@@ -166,26 +152,7 @@ class Cloudreve():
         if download_url:
             return download_url
         requrl="{}/api/v3/file/source".format(self.url, dav_file.file_id)
-        cookie_cloudreve=self.accessToken
-        base_url= self.url
-        parsed_url = urllib.parse.urlparse(base_url)
-        host = parsed_url.netloc 
-        headers = {
-            'authority': host,
-            'accept': 'application/json, text/plain, */*',
-            'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'content-type': 'application/json;charset=UTF-8',
-            'cookie': 'cloudreve-session='+cookie_cloudreve,
-            'origin': base_url,
-            'referer': base_url+'/home?path=%2F',
-            'sec-ch-ua': '"Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="116"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"macOS"',
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'same-origin',
-            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'
-        }
+        headers =self.get_headers()
         try:
             payload = "{\"items\":[\""+dav_file.file_id+"\"]}"
             response = requests.post(requrl,data=payload, verify=False, headers=headers, timeout=100)
@@ -242,6 +209,28 @@ class Cloudreve():
             self.config['access_token']=access_token
             self.driver.put(self.configFileName, data=json.dumps(self.config))
             self.accessToken = access_token
-    
+            
+    def get_headers(self):
+        cookie_cloudreve=self.accessToken
+        base_url= self.url
+        parsed_url = urllib.parse.urlparse(base_url)
+        host = parsed_url.netloc 
+        headers = {
+            'authority': host,
+            'accept': 'application/json, text/plain, */*',
+            'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            'content-type': 'application/json;charset=UTF-8',
+            'cookie': 'cloudreve-session='+cookie_cloudreve,
+            'origin': base_url,
+            'referer': base_url+'/home?path=%2F',
+            'sec-ch-ua': '"Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="116"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"macOS"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin',
+            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'
+        }
+        return headers
 
 
